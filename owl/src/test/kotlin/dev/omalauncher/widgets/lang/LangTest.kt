@@ -186,6 +186,31 @@ class LangTest {
         assertEquals("21", text("b", "state a = 10\nlet b = a * 2 + 1"))
     }
 
+    @Test fun pinchZoomClampsAndPreservesDimensionlessScale() {
+        val p = Compiler.compile("""widget {
+            meta { owl: 7 }
+            state zoom = 3
+            background: alpha(background, 0)
+            Shader {
+                onPinch: zoom = clamp(zoom + (scale - 1) * 2.6, 2, 10)
+                onDrag: zoom = zoom
+                code: "half4 main(float2 p) { return half4(0); }"
+            }
+        }""")
+        val host = TestHost(p)
+        val env = Env.root(host)
+        assertEquals(0, Builtins.argb(p.background!!(env), host)!! ushr 24)
+        val pinch = (p.root.single() as WNode.Element).handlers.getValue("onPinch")
+        pinch.run(env, listOf(Num(1.5), Num(100.0), Num(200.0)))
+        assertEquals(4.3, host.read(0).num()!!, .00001)
+        pinch.run(env, listOf(Num(.5), Num(100.0), Num(200.0)))
+        assertEquals(3.0, host.read(0).num()!!, .00001)
+        pinch.run(env, listOf(Num(100.0), Num(0.0), Num(0.0)))
+        assertEquals(10.0, host.read(0).num()!!, .00001)
+        repeat(20) { pinch.run(env, listOf(Num(.1), Num(0.0), Num(0.0))) }
+        assertEquals(2.0, host.read(0).num()!!, .00001)
+    }
+
     @Test fun handlersAssignStateAndRunActions() {
         val p = Compiler.compile("widget {\nstate n = 1\nonTap: { n = n + 1; run('echo hi') }\nText { text: n }\n}")
         val host = TestHost(p.globals.size)

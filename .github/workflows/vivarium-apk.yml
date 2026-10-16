@@ -1,0 +1,67 @@
+name: Vivarium APK
+on:
+  push:
+    branches: [vivarium-hologram]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: vivarium-apk
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android build tools
+        run: |
+          ndk=$(sed -n 's/^NDK_VERSION=//p' scripts/fetch-proot.sh)
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;$ndk" "cmake;3.22.1"
+          sudo apt-get update -q
+          sudo apt-get install -yq libarchive-tools
+      - name: Fetch native Linux runtime
+        run: scripts/fetch-proot.sh
+      - name: Configure custom signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VIVARIUM_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.VIVARIUM_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$STORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/vivarium.jks"
+          cat > keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/vivarium.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=vivarium
+          keyPassword=$STORE_PASSWORD
+          EOF
+      - name: Test and build signed APK
+        run: ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.parallel=false :owl:test :app:testDebugUnitTest :app:assembleRelease
+      - name: Prepare downloads
+        run: |
+          mkdir -p downloads
+          cp app/build/outputs/apk/release/app-release.apk downloads/omalauncher-vivarium-0.7.2-1.apk
+          cp app/src/main/assets/widgets/52-vivarium.owl downloads/52-vivarium.owl
+          cd downloads
+          sha256sum *.apk *.owl > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omalauncher-vivarium
+          path: downloads/
+      - name: Publish browser download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=custom-vivarium-0.7.2-1
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" downloads/* --clobber
+          else
+            gh release create "$tag" downloads/* --target "$GITHUB_SHA" --prerelease --title "Omalauncher + Vivarium: transparency and pinch zoom" --notes-file docs/VIVARIUM-RELEASE.md
+          fi

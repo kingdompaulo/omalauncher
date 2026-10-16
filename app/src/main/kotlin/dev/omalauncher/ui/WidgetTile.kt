@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.widgets.WidgetSpec
 import dev.omalauncher.widgets.lang.text
+import dev.omalauncher.widgets.lang.Builtins
 import dev.omalauncher.widgets.render.WidgetContent
 import dev.omalauncher.widgets.render.WidgetScreen
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,9 +52,18 @@ internal fun WidgetTile(
     waitsForLinux: LinuxState? = null,
     onInstallLinux: () -> Unit = {},
 ) {
+    // An explicit widget background replaces the tile fill rather than layering over it.
+    val background = instance?.program?.background
+    val explicitColor = instance?.let { inst -> background?.let { Builtins.argb(inst.eval(it, inst.root, "background"), inst) } }
+    val transparent = explicitColor != null && (explicitColor ushr 24) == 0
+    val tileFrame = if (background == null) Modifier.tile(focused) else Modifier.frame(
+        if (focused) LauncherStyle.focusWidth else if (transparent) 0.dp else LauncherStyle.borderWidth,
+        if (focused) LauncherStyle.focusBorder else LauncherStyle.tileBorder,
+        Color.Transparent,
+    )
     Box(
         modifier
-            .tile(focused)
+            .then(tileFrame)
             .pointerInput(spec) { detectTapGestures(onTap = { onTap() }) },
     ) {
         if (waitsForLinux != null) {

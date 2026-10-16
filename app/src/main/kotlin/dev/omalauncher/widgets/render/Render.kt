@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
@@ -577,8 +578,21 @@ private fun handlers(p: Props): Modifier {
     el.handlers["onTap"]?.let { a ->
         m = m.pointerInput(el, p.env) { detectTapGestures { o -> fire(a, o.x, o.y) } }
     }
-    el.handlers["onDrag"]?.let { a ->
-        m = m.pointerInput(el, p.env) { detectDragGestures { change, drag -> change.consume(); fire(a, drag.x, drag.y, change.position.x, change.position.y) } }
+    val pinch = el.handlers["onPinch"]
+    val drag = el.handlers["onDrag"]
+    if (pinch != null) {
+        // One recognizer owns pan and scale so a drag cannot swallow a two-finger pinch.
+        m = m.pointerInput(el, p.env) {
+            detectTransformGestures { centroid, pan, scale, _ ->
+                if (scale != 1f && scale.isFinite() && scale > 0f) {
+                    // Scale is dimensionless; only the centroid is converted from pixels to dp.
+                    pinch.run(p.env, listOf(Num(scale.toDouble()), Num((centroid.x / density).toDouble()), Num((centroid.y / density).toDouble())))
+                }
+                if (drag != null && pan != Offset.Zero) fire(drag, pan.x, pan.y, centroid.x, centroid.y)
+            }
+        }
+    } else if (drag != null) {
+        m = m.pointerInput(el, p.env) { detectDragGestures { change, delta -> change.consume(); fire(drag, delta.x, delta.y, change.position.x, change.position.y) } }
     }
     return m
 }

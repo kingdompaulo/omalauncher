@@ -362,6 +362,9 @@ class WidgetEngine(
         scope.launch {
             withContext(Dispatchers.IO) {
                 dir.mkdirs()
+                runCatching {
+                    VivariumUpgrade.install(dir, context.assets.open("widgets/52-vivarium.owl").use { it.readBytes() })
+                }.onFailure { Log.w("widgets", "Vivarium upgrade deferred", it) }
                 checkDir.mkdirs()
                 // Requests from before this start have been given up on: owl-send waits a few seconds at most.
                 inboxDir.deleteRecursively()

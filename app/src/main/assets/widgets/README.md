@@ -249,6 +249,7 @@ Every node also takes:
   (without `radius`, bordered elements follow the launcher's corner style: 0 for edge, 4 for soft, 8 for round;
   anything else matches it with `radius: 8 * corners`)
 - `opacity`, `rotation` (degrees), `scale`, `offset: [x, y]` (dp), `visible`
+- `onPinch`: pinch-to-zoom handler with `scale` (incremental, dimensionless; above 1 zooms in), `x`, `y` (centroid in dp). Can share a node with `onDrag`; handled by one transform recognizer.
 - handlers: `onTap` (with `x`, `y`) and `onDrag` (with `dx`, `dy`, `x`, `y`); `Slider` and `Input` also take
   `onChange`, and `Input` `onSubmit`, both with `value`. Long-press
   belongs to the home screen, which uses it to move and resize tiles
@@ -723,3 +724,5 @@ and the message goes to `.errors/`.
   `88-notes` (Input), `98-notifications` (android.notifications), `99-volume` (Slider),
   and next to it `10-today` (a weather screen behind the tile), `20-fetch` (fastfetch as a dashboard), `45-terminal` (a live terminal) and
   `60-owl` (sprites).
+
+An explicit widget `background` replaces the launcher tile fill. A fully transparent background also hides the unfocused outline; focus and arrangement still show the focus outline.

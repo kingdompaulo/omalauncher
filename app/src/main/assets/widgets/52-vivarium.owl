@@ -1,0 +1,494 @@
+widget "vivarium" {
+  meta { owl: 7; description: "A transparent holographic world with luminous terrain contours, procedural settlements and living biomes. Drag to orbit; tap to explore."; version: "7.1"; license: "MIT"; category: "fun" }
+  page: 1
+  order: 7
+  size: 6x4
+  minSize: 3x3
+  padding: 0
+  background: alpha(background, 0)
+  source now = clock every 1s
+  state orbitYaw = -25.8 persist
+  state orbitPitch = 12 persist
+  state zoomLevel = 3 persist
+  state viewTab = "world"
+  let zoomName = zoomLevel < 1.7 ? "DISTANT ORBIT" : zoomLevel < 3 ? "ORBIT" : zoomLevel < 5 ? "WORLD" : zoomLevel < 7 ? "REGION" : zoomLevel < 9 ? "HABITAT" : "INHABITANTS"
+  let biomeIndex = b => b == "forest" ? 0 : b == "alpine" ? 1 : b == "wetland" ? 2 : 3
+  let formIndex = f => f == "animal" ? 0 : f == "bird" ? 1 : f == "human" ? 2 : f == "spirit" ? 3 : 4
+  state tilt = 0
+  state turnAt = 0
+  state group = "animals"
+  state mistAt = 0
+  state residents = [] persist
+  state chosen = 0
+  state habitat = "forest"
+  state nickname = ""
+  state serial = 0 persist
+  let biomes = ["forest", "alpine", "wetland", "desert"]
+  let species = [
+    {name: "Deer", form: "animal", home: "forest", skill: "Foraging · self feeding in forest", forage: 4, resist: 0, hue: "#d6ad78"},
+    {name: "Wolf", form: "animal", home: "alpine", skill: "Endurance · tolerates harsh terrain", forage: 2, resist: 2, hue: "#b9c8d0"},
+    {name: "Heron", form: "bird", home: "wetland", skill: "Fishing · feeds beside the lake", forage: 4, resist: 0, hue: "#dfebe6"},
+    {name: "Human", form: "human", home: "forest", skill: "Sheltercraft · adapts to every biome", forage: 2, resist: 3, hue: "#e6c194"},
+    {name: "Dryad", form: "spirit", home: "forest", skill: "Photosynthesis · self sustaining in forest", forage: 5, resist: 1, hue: "#a5e5a5"},
+    {name: "Phoenix", form: "bird", home: "desert", skill: "Solar vitality · thrives in desert heat", forage: 5, resist: 2, hue: "#ffba62"},
+    {name: "Poseidon", form: "god", home: "wetland", skill: "Water mastery · needs no gathered food", forage: 6, resist: 4, hue: "#82e7ec"},
+    {name: "Skadi", form: "god", home: "alpine", skill: "Winter mastery · needs no gathered food", forage: 6, resist: 4, hue: "#c8ddff"}
+  ]
+  let pick = species[chosen]
+  // Ecological ticks run only while the widget is active. State survives reloads.
+  every 30s {
+    residents = residents.map(b => {id: b.id, name: b.name, form: b.form, home: b.home, biome: b.biome, skill: b.skill, forage: b.forage, resist: b.resist, hue: b.hue, hunger: clamp(b.hunger + 4 - (b.home == b.biome ? b.forage : floor(b.forage / 2)), 0, 100), health: clamp(b.health + (b.home == b.biome && b.hunger < 65 ? 2 : 0) - max(0, (b.home == b.biome ? 0 : 3) - b.resist) - (b.hunger > 80 ? 4 : 0), 0, 100)})
+  }
+  component WorldView() {
+    Shader {
+      fallback: alpha(background, 0)
+      onPinch: zoomLevel = clamp(zoomLevel + (scale - 1) * 2.6, 2, 10)
+      onDrag: { orbitYaw = orbitYaw - dx * 0.28 / max(1, pow(2, zoomLevel - 4)); orbitPitch = clamp(orbitPitch + dy * 0.24 / max(1, pow(2, zoomLevel - 4)), -85, 85) }
+      onTap: { viewTab = "world"; screen() }
+      uniforms: { yaw: orbitYaw,
+        pitch: orbitPitch,
+        zoom: zoomLevel,
+        weatherTime: now,
+        a0: len(residents) > 0 ? [ [residents[0].biome].map(biomeIndex)[0] ?? 0, [residents[0].form].map(formIndex)[0] ?? 0, residents[0].id ?? 0, residents[0].health ?? -1 ] : [0, 0, 0, -1],
+        a1: len(residents) > 1 ? [ [residents[1].biome].map(biomeIndex)[0] ?? 0, [residents[1].form].map(formIndex)[0] ?? 0, residents[1].id ?? 0, residents[1].health ?? -1 ] : [0, 0, 0, -1],
+        a2: len(residents) > 2 ? [ [residents[2].biome].map(biomeIndex)[0] ?? 0, [residents[2].form].map(formIndex)[0] ?? 0, residents[2].id ?? 0, residents[2].health ?? -1 ] : [0, 0, 0, -1],
+        a3: len(residents) > 3 ? [ [residents[3].biome].map(biomeIndex)[0] ?? 0, [residents[3].form].map(formIndex)[0] ?? 0, residents[3].id ?? 0, residents[3].health ?? -1 ] : [0, 0, 0, -1],
+        a4: len(residents) > 4 ? [ [residents[4].biome].map(biomeIndex)[0] ?? 0, [residents[4].form].map(formIndex)[0] ?? 0, residents[4].id ?? 0, residents[4].health ?? -1 ] : [0, 0, 0, -1],
+        a5: len(residents) > 5 ? [ [residents[5].biome].map(biomeIndex)[0] ?? 0, [residents[5].form].map(formIndex)[0] ?? 0, residents[5].id ?? 0, residents[5].health ?? -1 ] : [0, 0, 0, -1],
+        a6: len(residents) > 6 ? [ [residents[6].biome].map(biomeIndex)[0] ?? 0, [residents[6].form].map(formIndex)[0] ?? 0, residents[6].id ?? 0, residents[6].health ?? -1 ] : [0, 0, 0, -1],
+        a7: len(residents) > 7 ? [ [residents[7].biome].map(biomeIndex)[0] ?? 0, [residents[7].form].map(formIndex)[0] ?? 0, residents[7].id ?? 0, residents[7].health ?? -1 ] : [0, 0, 0, -1],
+        a8: len(residents) > 8 ? [ [residents[8].biome].map(biomeIndex)[0] ?? 0, [residents[8].form].map(formIndex)[0] ?? 0, residents[8].id ?? 0, residents[8].health ?? -1 ] : [0, 0, 0, -1],
+        a9: len(residents) > 9 ? [ [residents[9].biome].map(biomeIndex)[0] ?? 0, [residents[9].form].map(formIndex)[0] ?? 0, residents[9].id ?? 0, residents[9].health ?? -1 ] : [0, 0, 0, -1],
+        a10: len(residents) > 10 ? [ [residents[10].biome].map(biomeIndex)[0] ?? 0, [residents[10].form].map(formIndex)[0] ?? 0, residents[10].id ?? 0, residents[10].health ?? -1 ] : [0, 0, 0, -1],
+        a11: len(residents) > 11 ? [ [residents[11].biome].map(biomeIndex)[0] ?? 0, [residents[11].form].map(formIndex)[0] ?? 0, residents[11].id ?? 0, residents[11].health ?? -1 ] : [0, 0, 0, -1],
+        a12: len(residents) > 12 ? [ [residents[12].biome].map(biomeIndex)[0] ?? 0, [residents[12].form].map(formIndex)[0] ?? 0, residents[12].id ?? 0, residents[12].health ?? -1 ] : [0, 0, 0, -1],
+        a13: len(residents) > 13 ? [ [residents[13].biome].map(biomeIndex)[0] ?? 0, [residents[13].form].map(formIndex)[0] ?? 0, residents[13].id ?? 0, residents[13].health ?? -1 ] : [0, 0, 0, -1],
+        a14: len(residents) > 14 ? [ [residents[14].biome].map(biomeIndex)[0] ?? 0, [residents[14].form].map(formIndex)[0] ?? 0, residents[14].id ?? 0, residents[14].health ?? -1 ] : [0, 0, 0, -1],
+        a15: len(residents) > 15 ? [ [residents[15].biome].map(biomeIndex)[0] ?? 0, [residents[15].form].map(formIndex)[0] ?? 0, residents[15].id ?? 0, residents[15].health ?? -1 ] : [0, 0, 0, -1] }
+      code: """
+uniform float yaw;
+uniform float pitch;
+uniform float zoom;
+uniform float weatherTime;
+uniform float4 a0; uniform float4 a1; uniform float4 a2; uniform float4 a3;
+uniform float4 a4; uniform float4 a5; uniform float4 a6; uniform float4 a7;
+uniform float4 a8; uniform float4 a9; uniform float4 a10; uniform float4 a11;
+uniform float4 a12; uniform float4 a13; uniform float4 a14; uniform float4 a15;
+float hash(float3 p) { p=fract(p*0.3183099+float3(.11,.37,.73)); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float noise(float3 p) {
+  float3 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash(i),hash(i+float3(1,0,0)),f.x),mix(hash(i+float3(0,1,0)),hash(i+float3(1,1,0)),f.x),f.y),mix(mix(hash(i+float3(0,0,1)),hash(i+float3(1,0,1)),f.x),mix(hash(i+float3(0,1,1)),hash(i+float3(1,1,1)),f.x),f.y),f.z);
+}
+float fbm(float3 p) { return noise(p)*.55+noise(p*2.03+7.2)*.27+noise(p*4.13+2.1)*.13+noise(p*8.31)*.05; }
+float3 direction(float y,float p) { return float3(sin(y)*cos(p),sin(p),cos(y)*cos(p)); }
+float3 biomeCenter(float b) {
+  if(b<.5) return direction(-.45,.22);
+  if(b<1.5) return direction(2.4,.65);
+  if(b<2.5) return direction(.65,-.35);
+  return direction(-1.6,-.12);
+}
+float biome(float3 n) {
+  float f=dot(n,biomeCenter(0.0)); float a=dot(n,biomeCenter(1.0));
+  float w=dot(n,biomeCenter(2.0)); float d=dot(n,biomeCenter(3.0));
+  if(a>max(max(f,w),d)) return 1.0;
+  if(d>max(f,w)) return 3.0;
+  if(w>f) return 2.0;
+  return 0.0;
+}
+float ground(float3 n) {
+  float b=biome(n);
+  float low=noise(n*5.0+float3(2.2,1.3,6.2));
+  float land=smoothstep(.36,.63,low);
+  float centers=max(max(dot(n,biomeCenter(0.0)),dot(n,biomeCenter(1.0))),max(dot(n,biomeCenter(2.0)),dot(n,biomeCenter(3.0))));
+  land=max(land,smoothstep(.975,.999,centers));
+  float ridge=1.0-abs(noise(n*26.0)*2.0-1.0);
+  float h=land*(.004+low*low*.024);
+  if(b>.5&&b<1.5) h+=land*pow(ridge,3.0)*.029;
+  if(b>2.5) h+=land*(.003+.003*sin(n.x*170.0+n.y*20.0+low*7.0));
+  return h;
+}
+float field(float3 p) { float l=length(p); return l-1.0-ground(p/l); }
+float2 sphere(float3 ro,float3 rd,float r) { float b=dot(ro,rd); float d=b*b-dot(ro,ro)+r*r; if(d<0.0)return float2(-1.0); d=sqrt(d);return float2(-b-d,-b+d); }
+float segment(float2 p,float2 a,float2 b) { float2 q=p-a,v=b-a; return length(q-v*clamp(dot(q,v)/dot(v,v),0.0,1.0)); }
+// World-space detail remains attached to the terrain throughout orbit and zoom.
+float3 surfaceColor(float3 p,float3 n,float b,float dist) {
+  float h=length(p)-1.0;
+  float grain=fbm(n*420.0);
+  float3 cyan=float3(.16,.86,1.0);
+  float3 teal=float3(.10,.66,.53);
+  float3 amber=float3(1.0,.62,.22);
+  float3 ink=float3(.012,.055,.075);
+  float detailFade=smoothstep(3.1,1.14,dist);
+  float footprint=max(.000035,dist/min(size.x,size.y));
+  float coast=1.0-smoothstep(.0005,.0025,abs(h-.0017));
+  float contour=abs(fract(h*1050.0)-.5);
+  float lines=1.0-smoothstep(.025,.11+footprint*800.0,contour);
+  float3 c=ink+teal*(.09+grain*.14);
+  if(h<.0015) {
+    float wave=sin(n.x*610.0+time*.7+sin(n.z*170.0))*sin(n.z*530.0-time*.5);
+    return ink+cyan*(.08+pow(max(0.0,wave),16.0)*.23);
+  }
+  c+=mix(teal,cyan,step(.5,b)*.45)*lines*.48;
+  c+=cyan*coast*.8;
+  if(b>.5&&b<1.5) c+=cyan*smoothstep(.018,.043,h)*.25;
+  if(b>2.5) c=mix(c,c*float3(1.8,.85,.5)+amber*lines*.20,.55);
+  // Tangent-map parcels: roads, courtyards, pitched roofs, walls and towers.
+  float lon=atan(n.x,n.z);
+  float lat=asin(clamp(n.y,-1.0,1.0));
+  float2 map=float2(lon,lat)*560.0;
+  float2 parcel=floor(map);
+  float2 q=fract(map)-.5;
+  float seed=hash(float3(parcel,4.7));
+  float settlement=step(.46,noise(n*24.0))*step(.002,h)*(1.0-step(.06,h));
+  float road=1.0-smoothstep(.025,.055,length(float2(min(abs(q.x),abs(q.y)),0)));
+  c+=cyan*road*.30*settlement*detailFade;
+  float wall=max(abs(q.x),abs(q.y));
+  float rampart=(1.0-smoothstep(.018,.05,abs(wall-.39)));
+  float tower=1.0-smoothstep(.065,.095,length(abs(q)-float2(.38)));
+  float2 house=q-float2((seed-.5)*.26,0.0);
+  float roof=max(abs(house.x)*1.1,abs(house.y)*1.6);
+  float building=(1.0-smoothstep(.17,.19,roof))*step(.28,seed);
+  float ridge=1.0-smoothstep(.012,.035,abs(house.x));
+  float windows=pow(max(0.0,sin(house.y*90.0)),8.0)*building;
+  float roofEdge=1.0-smoothstep(.008,.024,abs(roof-.17));
+  float roofLight=mix(.38,.85,step(0.0,house.x));
+  c+=settlement*detailFade*(teal*building*roofLight+cyan*ridge*building*.45+amber*windows*.7+cyan*roofEdge*.7*step(.28,seed));
+  c+=settlement*detailFade*(cyan*rampart*.28+amber*tower*.65)*step(.78,seed);
+  // Individual tree crowns and branching streams between inhabited parcels.
+  float trees=pow(noise(n*760.0),6.0)*(1.0-settlement)*detailFade;
+  c+=teal*trees*1.6*(1.0-step(2.5,b));
+  float stream=1.0-smoothstep(.018,.065,abs(sin(lon*94.0+fbm(n*38.0)*8.0)));
+  c+=cyan*stream*.22*detailFade*(1.0-step(2.5,b));
+  return c;
+}
+half4 main(float2 p) {
+  float2 uv=(p-size*.5)/min(size.x,size.y);
+  float y= radians(yaw), pi=radians(pitch);
+  float3 forward=direction(y,pi);
+  float distance=zoom<3.0?3.1*pow(9.0,3.0-zoom):1.073+2.027*pow(.30,zoom-3.0);
+  float3 ro=forward*distance;
+  float3 right=normalize(cross(float3(0,1,0),forward));
+  float3 top=cross(forward,right);
+  float3 rd=normalize(right*uv.x-top*uv.y-forward*(1.30*pow(1.45,max(0.0,zoom-6.0))));
+  float3 color=float3(0.0);
+  float alpha=0.0;
+  float2 envelope=sphere(ro,rd,1.025);
+  if(envelope.y<0.0) return half4(0.0);
+  float seaFallback=0.0;
+  float2 hit=sphere(ro,rd,1.066);
+  if(hit.y>0.0) {
+    float t=max(.0001,hit.x);
+    float end=hit.y;
+    float eps=.00009+min(t,2.0)*.00012;
+    float found=0.0;
+    for(int i=0;i<36;i++) {
+      float3 pos=ro+rd*t;
+      float h=field(pos);
+      if(h<eps){found=1.0;break;}
+      t+=max(h*.75,eps*.45);
+      if(t>end)break;
+    }
+    // Resolve grazing rays against the sea shell to avoid torn silhouettes.
+    if(found<.5) { float2 sea=envelope; if(sea.x>0.0) {t=sea.x;found=1.0;seaFallback=1.0;} }
+    if(found>.5) {
+      float3 pos=ro+rd*t;
+      float3 n=normalize(pos);
+      float e=.0006;
+      float3 norm=normalize(float3(field(pos+float3(e,0,0))-field(pos-float3(e,0,0)),field(pos+float3(0,e,0))-field(pos-float3(0,e,0)),field(pos+float3(0,0,e))-field(pos-float3(0,0,e))));
+      float3 sun=normalize(float3(-.8,.9,1.2));
+      float diffuse=max(.0,dot(norm,sun));
+      float occlusion=clamp(.7+field(pos+sun*.008)*32.0,.45,1.0);
+      float b=biome(n);
+      color=surfaceColor(seaFallback>.5?n:pos,n,b,t)*(.75+diffuse*.55)*occlusion;
+      float height=length(pos)-1.0;
+      if(height<.0017) {
+        float spec=pow(max(0.0,dot(reflect(-sun,n),-rd)),90.0);
+        color+=float3(.16,.86,1.0)*spec*.45;
+      }
+      float atmospheric=pow(1.0-max(0.0,dot(n,-rd)),3.0)*smoothstep(1.2,2.5,distance);
+      color+=float3(.12,.73,1.0)*atmospheric*.5;
+      alpha=1.0;
+      // Small holographic inhabitants remain attached to their home region.
+      if(a0.w>=0.0) {
+        float3 up=biomeCenter(a0.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a0.z*2.4)*.022+sin(a0.z*7.1)*.035)+north*cos(a0.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a1.w>=0.0) {
+        float3 up=biomeCenter(a1.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a1.z*2.4)*.022+sin(a1.z*7.1)*.035)+north*cos(a1.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a2.w>=0.0) {
+        float3 up=biomeCenter(a2.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a2.z*2.4)*.022+sin(a2.z*7.1)*.035)+north*cos(a2.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a3.w>=0.0) {
+        float3 up=biomeCenter(a3.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a3.z*2.4)*.022+sin(a3.z*7.1)*.035)+north*cos(a3.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a4.w>=0.0) {
+        float3 up=biomeCenter(a4.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a4.z*2.4)*.022+sin(a4.z*7.1)*.035)+north*cos(a4.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a5.w>=0.0) {
+        float3 up=biomeCenter(a5.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a5.z*2.4)*.022+sin(a5.z*7.1)*.035)+north*cos(a5.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a6.w>=0.0) {
+        float3 up=biomeCenter(a6.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a6.z*2.4)*.022+sin(a6.z*7.1)*.035)+north*cos(a6.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a7.w>=0.0) {
+        float3 up=biomeCenter(a7.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a7.z*2.4)*.022+sin(a7.z*7.1)*.035)+north*cos(a7.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a8.w>=0.0) {
+        float3 up=biomeCenter(a8.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a8.z*2.4)*.022+sin(a8.z*7.1)*.035)+north*cos(a8.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a9.w>=0.0) {
+        float3 up=biomeCenter(a9.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a9.z*2.4)*.022+sin(a9.z*7.1)*.035)+north*cos(a9.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a10.w>=0.0) {
+        float3 up=biomeCenter(a10.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a10.z*2.4)*.022+sin(a10.z*7.1)*.035)+north*cos(a10.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a11.w>=0.0) {
+        float3 up=biomeCenter(a11.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a11.z*2.4)*.022+sin(a11.z*7.1)*.035)+north*cos(a11.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a12.w>=0.0) {
+        float3 up=biomeCenter(a12.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a12.z*2.4)*.022+sin(a12.z*7.1)*.035)+north*cos(a12.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a13.w>=0.0) {
+        float3 up=biomeCenter(a13.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a13.z*2.4)*.022+sin(a13.z*7.1)*.035)+north*cos(a13.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a14.w>=0.0) {
+        float3 up=biomeCenter(a14.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a14.z*2.4)*.022+sin(a14.z*7.1)*.035)+north*cos(a14.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      if(a15.w>=0.0) {
+        float3 up=biomeCenter(a15.x);
+        float3 east=normalize(cross(float3(0,1,0),up));
+        float3 north=cross(up,east);
+        float3 center=normalize(up+east*(sin(time*.18+a15.z*2.4)*.022+sin(a15.z*7.1)*.035)+north*cos(a15.z*3.1)*.018);
+        float2 local=float2(dot(n-center,east),dot(n-center,north));
+        float marker=1.0-smoothstep(.0005,.0016,length(local));
+        float halo=exp(-length(local)*650.0)*.23;
+        color+=float3(1.0,.62,.22)*(marker+halo)*smoothstep(3.0,1.3,distance);
+      }
+      // Moving cloud wisps and terrain light stay in world coordinates.
+      float cloud=pow(max(0.0,fbm(n*17.0+float3(time*.008,0,time*.003))-.44),3.0)*4.0;
+      color+=float3(.12,.75,.9)*cloud*.18*smoothstep(1.08,1.8,distance);
+      // Subtle world-space scanning light; no rectangular screen-space backdrop.
+      float scan=pow(max(0.0,cos(n.y*170.0-time*.65)),24.0);
+      color+=float3(.10,.55,.75)*scan*.08;
+      color=color/(color+float3(.75))*1.35;
+    }
+  }
+  // Physical sphere normals supply a thin glass rim and travelling highlights.
+  float2 glass=sphere(ro,rd,1.073);
+  if(glass.x>0.0&&distance>1.13) {
+    float3 gn=normalize(ro+rd*glass.x);
+    float fresnel=pow(1.0-max(0.0,dot(gn,-rd)),4.0);
+    float spec=pow(max(0.0,dot(reflect(normalize(float3(.6,-.8,-1)),gn),-rd)),160.0);
+    float ga=(fresnel*.21+spec*.26)*smoothstep(1.13,1.7,distance);
+    color+=float3(.12,.8,1.0)*ga;
+    alpha=max(alpha,ga);
+  }
+  return half4(half3(clamp(color,0.0,1.0))*alpha,alpha);
+}
+
+      """
+    }
+  }
+  // The home tile is only the world. Tap it to reveal exploration controls.
+  Box { WorldView { fill: true } }
+  screen {
+    title: "living world"
+    Column {
+      gap: 8
+      Row {
+        Button { text: "explore world"; color: viewTab == "world" ? accent : muted; onTap: viewTab = "world" }
+        Button { text: "inhabitants"; color: viewTab == "life" ? accent : muted; onTap: viewTab = "life" }
+      }
+      if viewTab == "world" {
+        Box {
+          weight: 1
+          fill: width
+          WorldView { fill: true }
+          Box { fill: true; align: topStart; padding: 10
+            Column {
+              Text { text: zoomName; style: label; color: rgb(188, 218, 207) }
+              Text { text: "drag to orbit · pinch to zoom · hologram prototype"; style: small; color: muted }
+            }
+          }
+        }
+        Row {
+          Button { text: "−"; onTap: zoomLevel = max(2, zoomLevel - 0.5) }
+          Slider { value: zoomLevel; min: 2; max: 10; step: 0.05; live: true; weight: 1; onChange: zoomLevel = value }
+          Button { text: "+"; onTap: zoomLevel = min(10, zoomLevel + 0.5) }
+        }
+        Flow {
+          Button { text: "distant orbit"; onTap: zoomLevel = 2 }
+          Button { text: "globe"; onTap: zoomLevel = 3 }
+          Button { text: "forest"; onTap: { orbitYaw = -25.8; orbitPitch = 12.6; zoomLevel = 7 } }
+          Button { text: "alpine"; onTap: { orbitYaw = 137.5; orbitPitch = 37.2; zoomLevel = 7 } }
+          Button { text: "wetland"; onTap: { orbitYaw = 37.2; orbitPitch = -20.1; zoomLevel = 7 } }
+          Button { text: "desert"; onTap: { orbitYaw = -91.7; orbitPitch = -6.9; zoomLevel = 7 } }
+        }
+      } else {
+      Column {
+      weight: 1
+      scroll: true
+      padding: 16
+      gap: 10
+      Text { text: "Populate your world"; style: title }
+      Text { text: "Introduce beings, choose their habitats and follow them on the spherical world. Use explore to orbit, zoom down to the terrain or pull back to a distant orbit."; style: small }
+      Row {
+        for label, i in ["animals", "humans", "mythology"] {
+          Button { text: label; color: group == label ? accent : muted; onTap: { group = label; chosen = i == 0 ? 0 : i == 1 ? 3 : 4; habitat = "forest" } }
+        }
+      }
+      Flow {
+        for s, i in species {
+          if (group == "animals" && i < 3) || (group == "humans" && i == 3) || (group == "mythology" && i > 3) {
+            Button { text: s.name; color: chosen == i ? accent : muted; onTap: { chosen = i; habitat = s.home } }
+          }
+        }
+      }
+      Text { text: pick.skill; color: accent; style: small }
+      Text { text: "Preferred habitat: ${pick.home}"; style: small }
+      Flow {
+        for b in biomes { Button { text: b; color: habitat == b ? accent : muted; onTap: habitat = b } }
+      }
+      Input { placeholder: "Name (optional)"; text: nickname; onChange: nickname = value }
+      Button {
+        text: len(residents) < 16 ? "Introduce ${pick.name} to ${habitat}" : "World full · 16 inhabitants"
+        onTap: {
+          residents = len(residents) < 16 ? flatten([residents, [{id: serial, name: len(trim(nickname)) > 0 ? nickname : pick.name, form: pick.form, home: pick.home, biome: habitat, skill: pick.skill, forage: pick.forage, resist: pick.resist, hue: pick.hue, hunger: 0, health: 100}]]) : residents
+          serial = serial + 1
+          nickname = ""
+          haptic()
+        }
+      }
+      Row {
+        Button { text: "mist globe"; onTap: mistAt = now }
+        Button { text: "feed all"; onTap: residents = residents.map(b => {id: b.id, name: b.name, form: b.form, home: b.home, biome: b.biome, skill: b.skill, forage: b.forage, resist: b.resist, hue: b.hue, hunger: max(0, b.hunger - 40), health: min(100, b.health + 10)}) }
+      }
+      Text { text: "${len(residents)} inhabitants"; style: title }
+      Text { text: "Survival updates every 30 seconds while active. Matching habitats restore vitality. Foraging slows hunger; endurance and shelter reduce habitat damage. Feed to restore weakened beings. At zero vitality they become dormant."; style: small; color: muted }
+      for b in residents key b.id {
+        Column {
+          padding: 10
+          background: surface
+          radius: 8 * corners
+          Text { text: "${b.name} · ${b.biome}"; bold: true }
+          Text { text: b.skill; style: small }
+          Text { text: "Vitality ${round(b.health)}% · hunger ${round(b.hunger)}%${b.health <= 0 ? ' · dormant' : ''}"; style: small }
+          Progress { value: b.health; color: b.health < 30 ? red : green; height: 4 }
+          Flow {
+            for home in biomes { Button { text: home; onTap: residents = residents.map(r => {id: r.id, name: r.name, form: r.form, home: r.home, biome: r.id == b.id ? home : r.biome, skill: r.skill, forage: r.forage, resist: r.resist, hue: r.hue, hunger: r.hunger, health: r.health}) } }
+            Button { text: "follow in world"; onTap: { orbitYaw = b.biome == "forest" ? -25.8 : b.biome == "alpine" ? 137.5 : b.biome == "wetland" ? 37.2 : -91.7; orbitPitch = b.biome == "forest" ? 12.6 : b.biome == "alpine" ? 37.2 : b.biome == "wetland" ? -20.1 : -6.9; zoomLevel = 9.7; viewTab = "world" } }
+            Button { text: "release"; onTap: residents = residents.filter(r => r.id != b.id) }
+          }
+        }
+      }
+      Button { text: "return to globe"; onTap: close() }
+    }
+      }
+    }
+  }
+}

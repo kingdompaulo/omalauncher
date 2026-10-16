@@ -126,7 +126,7 @@ class Compiler private constructor(
         val MANAGERS = mapOf("pacman" to Regex("[a-z0-9@_+][a-z0-9@._+-]*"))
 
         private val HANDLER_PARAMS =
-            mapOf("onTap" to listOf("x", "y"), "onDrag" to listOf("dx", "dy", "x", "y"), "onChange" to listOf("value"), "onSubmit" to listOf("value"))
+            mapOf("onTap" to listOf("x", "y"), "onDrag" to listOf("dx", "dy", "x", "y"), "onPinch" to listOf("scale", "x", "y"), "onChange" to listOf("value"), "onSubmit" to listOf("value"))
 
         /** Handlers only some nodes have. */
         private val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSubmit" to setOf("Input"))
