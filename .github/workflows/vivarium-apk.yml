@@ -20,13 +20,14 @@ jobs:
           java-version: 25
       - uses: android-actions/setup-android@v3
         with:
+          cmdline-tools-version: 16111833
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - name: Install Android build tools
         run: |
           ndk=$(sed -n 's/^NDK_VERSION=//p' scripts/fetch-proot.sh)
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;$ndk" "cmake;3.22.1"
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;$ndk" "cmake;3.22.1"
           sudo apt-get update -q
           sudo apt-get install -yq libarchive-tools
       - name: Fetch native Linux runtime
